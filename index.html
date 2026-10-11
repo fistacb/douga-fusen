@@ -224,15 +224,18 @@ $("copy").onclick = async () => {
 };
 $("send").onclick = async () => {
   const p = payload(), stamp = p.made.replace(/[-:T]/g, "").slice(0, 14);
-  const name = p.run.replace(/[\\/:*?"<>|]/g, "_") + "_notes_" + stamp + ".json";
-  const file = new File([JSON.stringify(p, null, 1)], name, { type: "application/json" });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+  // a browser shares only a few kinds of file, and JSON is not one of them (Chrome refused it, 2026-10-11):
+  // the notes go as a plain text file with the JSON inside; the PC reads both .txt and .json
+  const name = p.run.replace(/[\\/:*?"<>|]/g, "_") + "_notes_" + stamp + ".txt";
+  const file = new File([JSON.stringify(p, null, 1)], name, { type: "text/plain" });
+  let why = !navigator.share ? "このブラウザに共有の機能がない" : "";
+  if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
     try { await navigator.share({ files: [file], title: name }); say("共有メニューに渡しました。ドライブの「動画の付箋」に保存すると、PC が直しはじめます。"); return; }
-    catch (e) { if (e.name === "AbortError") { say("送るのをやめました。付箋は残っています。"); return; } }
-  }
+    catch (e) { if (e.name === "AbortError") { say("送るのをやめました。付箋は残っています。"); return; } why = e.name + " " + e.message; }
+  } else if (navigator.share) { why = "ファイルの共有をブラウザが受け付けない"; }
   const a = document.createElement("a");
   a.href = URL.createObjectURL(file); a.download = name; document.body.append(a); a.click(); a.remove();
-  say("共有メニューが使えないので、ファイルをダウンロードしました（" + name + "）。ドライブの「動画の付箋」にアップロードしてください。");
+  say("共有メニューが使えないので（" + why + "）、ファイルをダウンロードしました（" + name + "）。ドライブの「動画の付箋」にアップロードしてください。");
 };
 render();
 </script>
