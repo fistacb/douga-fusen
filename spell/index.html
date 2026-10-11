@@ -80,7 +80,7 @@ summary{cursor:pointer;color:var(--muted)}
       <summary>呪文の例と辞書</summary>
       <div class="lists">
         <div class="samples" id="samples"></div>
-        <p class="hint">対象は「あか・あお・みどり」（かかし）、「右・左・真ん中」、「全員」、「仲間」、「自分」、魔法使いの名前で指定できます。威力は長さ、区切りの数、効果の言葉の数、「大いなる・究極・古の」などの言葉で上がり、「ぷち・ちょっと」で下がります。</p>
+        <p class="hint"><a href="about.html" style="color:var(--gold)">このページのしくみ</a>　対象は「あか・あお・みどり」（かかし）、「右・左・真ん中」、「全員」、「仲間」、「自分」、魔法使いの名前で指定できます。威力は長さ、区切りの数、効果の言葉の数、「大いなる・究極・古の」などの言葉で上がり、「ぷち・ちょっと」で下がります。</p>
         <div class="dict" id="dict"></div>
       </div>
     </details>
@@ -407,9 +407,9 @@ const FX=[
   run:({t,k})=>{burst(t.center(),{colors:[0xffffff,0xe8e4ff],n:60,speed:3});t.addStatus('invisible',3+k);}},
  {id:'poison',name:'ポイズン',color:0x7dff4a,mode:'attack',words:['毒','どく','ぽいずん','べのむ','腐','くされ','瘴気','しょうき','どくどく'],
   run:({from,t,k})=>projectile(from,t.center(),{color:0x7dff4a,size:.6*k,dur:.8,arc:1.6,trail:p=>Math.random()<.4&&spawnSprite({tex:bubbleTex,color:0x8dff5a,pos:p,life:.5,size:.25}),onHit:p=>{for(let i=0;i<10*k;i++)spawnSprite({tex:bubbleTex,color:pick([0x8dff5a,0xb06aff]),pos:p.clone().add(V(R(-.6,.6),R(-.6,.6),R(-.6,.6))),vel:V(0,R(.5,1.5),0),life:R(.8,1.4),size:R(.2,.5)});t.addStatus('poison',4);t.hit(.5);}})},
- {id:'sleep',name:'スリープ',color:0xb8c4ff,mode:'attack',words:['眠','ねむ','すりーぷ','おやすみ','ねんね','睡魔','すいま','子守','こもり','らりほ'],
+ {id:'sleep',name:'スリープ',color:0xb8c4ff,mode:'attack',words:['眠','ねむ','すりーぷ','おやすみ','ねんね','睡魔','すいま','子守','こもり'],
   run:({t,k})=>{for(let i=0;i<10;i++)spawnSprite({tex:dotTex,add:true,color:0xb8c4ff,pos:t.top().add(V(R(-1,1),R(0,1),R(-1,1))),vel:V(0,-.6,0),life:1.4,size:.4});later(.5,()=>t.addStatus('sleep',4+k));}},
- {id:'timestop',name:'時よ止まれ',color:0xe0e0e0,mode:'world',once:true,words:['時よ止まれ','ときよとまれ','時間停止','じかんていし','ざわーるど','止まれ','とまれ','時を止め','ときをとめ','時'],
+ {id:'timestop',name:'時よ止まれ',color:0xe0e0e0,mode:'world',once:true,words:['時よ止まれ','ときよとまれ','時間停止','じかんていし','止まれ','とまれ','時を止め','ときをとめ','時'],
   run:({k})=>{screenFlash('#ffffff',.6,.4);const dur=1.6+k;let t=0;canvas.style.filter='grayscale(1) contrast(1.15)';timeScale=.03;
    realFx.push(dt=>{t+=dt;if(t>=dur){timeScale=1;canvas.style.filter='';screenFlash('#ffffff',.3,.3);return false;}return true;});}},
  {id:'summon',name:'召喚',color:0xffc46a,mode:'attack',words:['召喚','しょうかん','出でよ','いでよ','さもん','来たれ','きたれ','来い','こい','現れよ','あらわれよ'],
@@ -423,7 +423,7 @@ const FX=[
   run:({k})=>{during(2.5,()=>{for(let i=0;i<40*k;i++)sparks.emit(V(R(-9,9),R(8,12),R(-8,6)),V(-1,-18,0),C(pick([0x6ab8ff,0xa8d4ff])),.6,0);});FOES.forEach(f=>later(.6,()=>f.addStatus('wet',3)));scene.fog.color.set(0x141a2c);later(2.5,()=>scene.fog.color.set(0x0d0b1c));}},
  {id:'rainbow',name:'虹',color:0xff9ae0,mode:'world',once:true,words:['虹','にじ','れいんぼー','七色','なないろ','希望'],
   run:()=>{const cols=[0xff4a4a,0xff9a3a,0xffe14a,0x5aff6a,0x4ac8ff,0x5a6aff,0xb56aff];during(3,(dt,u)=>{cols.forEach((c,i)=>{for(let j=0;j<3;j++){const a=R(0,Math.PI)*Math.min(1,u*3);const r=9-i*.35;glows.emit(V(Math.cos(a)*r,Math.sin(a)*r*.75,-6),V(0,0,0),C(c),.5,0);}});});}},
- {id:'laser',name:'レーザー',color:0xff4a8a,mode:'attack',words:['びーむ','光線','こうせん','れーざー','かめはめ','波動','はどう','ぶらすたー','ほう','砲'],
+ {id:'laser',name:'レーザー',color:0xff4a8a,mode:'attack',words:['びーむ','光線','こうせん','れーざー','波動','はどう','ぶらすたー','ほう','砲'],
   run:({from,t,k,lv})=>{const to=t.center();const len=from.distanceTo(to);const mk=(r,c,o)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,16,1,true),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o,blending:THREE.AdditiveBlending,depthWrite:false}));m.position.lerpVectors(from,to,.5);m.quaternion.setFromUnitVectors(V(0,1,0),V().subVectors(to,from).normalize());scene.add(m);return m;};
    const a=mk(.25*k,0xff4a8a,.6),b=mk(.09*k,0xffffff,.95);flashLight(to,0xff4a8a,5*k,.9);t.hit(1.4);shake(.25*k);if(lv>=3)screenFlash('#ffd0e4',.3,.4);
    during(.8,(dt,u)=>{const w=1+Math.sin(u*80)*.15;a.scale.set(w*(1-u*.6),1,w*(1-u*.6));a.material.opacity=.6*(1-u);b.material.opacity=.95*(1-u);burst(to,{colors:[0xffffff,0xff4a8a],n:6*k,speed:5});},()=>{removeMesh(a);removeMesh(b);});}},

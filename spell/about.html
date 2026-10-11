@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>呪文の練習場のしくみ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@700;800&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+/* 魔導書の1ページ風の技術解説。本文は1段、処理の流れは段の列、数値は表で見せる */
+:root{
+  --paper:#f7f4ee; --ink:#231f33; --muted:#625b78; --line:#d9d2e6; --gold:#9a6a12; --accent:#5b45b0; --code:#efeaf7;
+  --display:'Shippori Mincho B1','Hiragino Mincho ProN','Yu Mincho',serif;
+  --body:'Zen Kaku Gothic New','Hiragino Sans','Yu Gothic',system-ui,sans-serif;
+  --mono:ui-monospace,'SFMono-Regular',Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#141124;--ink:#ece7ff;--muted:#a79fcc;--line:#352e52;--gold:#f2c46b;--accent:#b4a3ff;--code:#211b3a;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#141124;--ink:#ece7ff;--muted:#a79fcc;--line:#352e52;--gold:#f2c46b;--accent:#b4a3ff;--code:#211b3a;color-scheme:dark}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.8}
+main{max-width:46rem;margin:0 auto;padding-block:40px 64px;padding-left:16px;padding-right:16px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,5vw,40px);line-height:1.3;margin:0 0 8px;text-wrap:balance;color:var(--gold);letter-spacing:.04em}
+.lead{color:var(--muted);margin:0 0 32px}
+h2{font-family:var(--display);font-weight:700;font-size:22px;margin:44px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line);text-wrap:balance}
+h2 span{color:var(--gold);font-size:14px;letter-spacing:.2em;margin-right:10px}
+p{margin:0 0 14px}
+code{font-family:var(--mono);font-size:.88em;background:var(--code);padding:1px 5px;border-radius:4px}
+pre{font-family:var(--mono);font-size:13px;line-height:1.6;background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto;margin:0 0 14px}
+.flow{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.flow li{border:1px solid var(--line);border-radius:8px;padding:4px 10px;font-size:14px}
+.flow li.sep{border:0;padding:0 2px;color:var(--muted)}
+.flow li.ext{border-color:var(--accent);color:var(--accent)}
+.tbl{overflow-x:auto;margin:0 0 14px}
+table{border-collapse:collapse;font-size:14px;min-width:100%}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:700;white-space:nowrap}
+td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+ul{margin:0 0 14px;padding-left:1.3em}
+li{margin:2px 0}
+.note{border-left:3px solid var(--gold);padding:6px 12px;margin:0 0 14px;color:var(--muted);font-size:14px}
+a{color:var(--accent)}
+footer{margin-top:48px;font-size:13px;color:var(--muted)}
+</style>
+
+<main>
+<h1>呪文の練習場のしくみ</h1>
+<p class="lead">声で唱えた呪文を、ブラウザの中だけで読み解いて、3Dの魔法にして飛ばしています。サーバーも AI の言語モデルも使っていません。このページでは、その中身を順に説明します。<br><a href="./">練習場にもどる</a></p>
+
+<h2><span>流れ</span>唱えてから魔法が出るまで</h2>
+<ul class="flow" aria-label="処理の流れ">
+  <li class="ext">マイク</li><li class="sep">→</li><li class="ext">Chrome の音声認識</li><li class="sep">→</li><li>文字をそろえる</li><li class="sep">→</li><li>対象と強め語を抜き出す</li><li class="sep">→</li><li>効果を探す</li><li class="sep">→</li><li>威力を決める</li><li class="sep">→</li><li>溜め</li><li class="sep">→</li><li>発動</li>
+</ul>
+<p>色の付いた2つだけがブラウザの外の機能（マイクと音声認識）で、あとはすべてページの中の JavaScript で動いています。全体で HTML 1枚です。</p>
+
+<h2><span>一</span>声を文字にする</h2>
+<p>Chrome に組み込まれている音声認識（Web Speech API の <code>SpeechRecognition</code>）を、日本語（<code>ja-JP</code>）で使っています。</p>
+<ul>
+  <li><b>途中経過も受け取る</b>（<code>interimResults</code>）。話している間も文字が届くので、その時点の呪文で魔法陣の色と大きさを変えています。</li>
+  <li><b>候補を3つもらう</b>（<code>maxAlternatives = 3</code>）。聞き違いに備えて、3つの候補のうち効果が見つかったものを使います。</li>
+  <li>話し終わる（無音になる）と確定し、発動します。</li>
+</ul>
+<p class="note">Chrome の音声認識は、通常、音声を Google のサーバーに送って文字にしています。このページが外に送るのはこの音声だけです。文字で唱えた場合は、どこにも送りません。</p>
+
+<h2><span>二</span>文字をそろえる</h2>
+<p>同じ呪文でも、音声認識はカタカナ、ひらがな、全角、半角をばらばらに返します。そこで、比べる前に次の順で形をそろえます。</p>
+<pre>NFKC 正規化（全角英数・半角カナを統一）→ 小文字 → カタカナをひらがなへ
+例：「ファイア」→「ふぁいあ」</pre>
+
+<h2><span>三</span>対象と強め語を抜き出す</h2>
+<p>先に「誰に」と「どれくらい強く」を表す語を探し、見つけた語は伏せ字（<code>＿</code>）にして、効果の探索から外します。たとえば「あか」が火の効果に引っぱられないようにするためです。</p>
+<div class="tbl"><table>
+<tr><th>種類</th><th>語の例</th><th>意味</th></tr>
+<tr><td>対象</td><td>あか・あお・みどり、右・左・真ん中、全員、仲間、自分、リオ・オルド・ミラ</td><td>当てる相手</td></tr>
+<tr><td>強め語</td><td>大いなる、究極、古の、我が名、盟約、終焉、奥義 など</td><td>威力が上がる</td></tr>
+<tr><td>弱め語</td><td>ぷち、ちょっと、少し、軽く など</td><td>威力が下がる</td></tr>
+</table></div>
+<p>対象を書かなければ、攻撃は向かいのかかしに、回復やバリアは唱えた本人にかかります。</p>
+
+<h2><span>四</span>効果を探す（文字の並びで比べる簡易ベクトル検索）</h2>
+<p>効果は40種類あり、それぞれに呼び名の一覧（例：ファイアボールなら「炎、火、ふぁいあ、ほのお…」）を持たせています。呪文と呼び名を、<b>2文字ずつの組（バイグラム）</b>に分けて比べます。</p>
+<pre>呼び名「ふれいむ」 → ふれ / れい / いむ
+呪文「ふれいみんぐ」→ ふれ / れい / いみ / みん / んぐ
+一致 2組 ÷ 呼び名 3組 ＝ 0.67</pre>
+<ul>
+  <li>呼び名の組のうち、呪文に含まれる割合を点数にします。言い間違いや伸ばし棒の違いがあっても、半分以上合っていれば拾えます。</li>
+  <li>短い呼び名ほど偶然当たりやすいので、重みを下げます（漢字1字は0.75、かな1字は0.4、2字は0.85、3字以上は1）。</li>
+  <li>効果ごとに一番よい点数を取り、<b>0.6以上</b>なら採用します。1つもなければ<b>詠唱失敗</b>です。</li>
+</ul>
+<p class="note">意味まで分かる本物のベクトル検索（文の埋め込み）は、ブラウザで動かすと100MB級のモデルの読み込みが必要になるため、軽さを優先してこの方式にしました。文字の一致だけを見るので、「天」が入っていると聖なる光も出る、のような意外な組み合わせも起きます。</p>
+
+<h2><span>五</span>威力を決める</h2>
+<p>長くて凝った呪文ほど派手になるよう、次の式で点数を出し、5段階にします。</p>
+<pre>点数 ＝ 文字数 ÷ 6 ＋ (区切りの数 − 1) × 0.8 ＋ 見つかった効果の数 × 0.9
+       ＋ 強め語の数 × 1.3 − 弱め語の数 × 2.2
+威力 ＝ 1 ＋ ⌊点数 ÷ 2.2⌋（1〜5に収める）</pre>
+<div class="tbl"><table>
+<tr><th>威力</th><th>大きさの倍率</th><th>同時に出す効果</th><th>演出</th></tr>
+<tr><td class="n">★1</td><td class="n">0.6倍</td><td>1つ</td><td></td></tr>
+<tr><td class="n">★2</td><td class="n">0.85倍</td><td>2つまで</td><td></td></tr>
+<tr><td class="n">★3</td><td class="n">1.1倍</td><td>2つまで</td><td>爆発などで画面が光る</td></tr>
+<tr><td class="n">★4</td><td class="n">1.45倍</td><td>3つまで</td><td>発動の瞬間に画面が光り、揺れる</td></tr>
+<tr><td class="n">★5</td><td class="n">1.9倍</td><td>3つまで</td><td>一瞬スローになり、対象を書かなければ全員に当たる</td></tr>
+</table></div>
+<p>実際の判定の例です（このページの式で計算した値）。</p>
+<div class="tbl"><table>
+<tr><th>呪文</th><th>点数</th><th>威力</th><th>出る効果</th></tr>
+<tr><td>ファイア</td><td class="n">1.6</td><td class="n">★1</td><td>ファイアボール</td></tr>
+<tr><td>炎よ、我が手に集え、ファイアボール</td><td class="n">5.0</td><td class="n">★3</td><td>ファイアボール</td></tr>
+<tr><td>右をカエルにする</td><td class="n">2.2</td><td class="n">★2</td><td>カエル化（右のかかし）</td></tr>
+<tr><td>大いなる天の雷よ、我が名において、全員に降り注げ</td><td class="n">9.7</td><td class="n">★5</td><td>サンダー＋ホーリー（全員）</td></tr>
+<tr><td>我、古の盟約に従い、深淵より来たる終焉の炎と隕石をもって、すべてを焼き尽くせ</td><td class="n">16.6</td><td class="n">★5</td><td>火柱＋ダークボール＋メテオ（全員）</td></tr>
+<tr><td>ほにゃららぱー</td><td class="n">1.2</td><td class="n">―</td><td>詠唱失敗（ぷすん…）</td></tr>
+</table></div>
+
+<h2><span>六</span>溜めと発動</h2>
+<ul>
+  <li><b>溜め</b>：唱えはじめると、足元に魔法陣が回り、杖の先へ光の粒が集まります。途中の文字から効果が見つかると、その属性の色に変わり、威力に合わせて魔法陣が大きくなります。</li>
+  <li><b>発動</b>：杖の先に小さな魔法陣が開き、効果ごとの処理が動きます。複数の効果は0.55秒ずつずらして出し、全員が対象なら0.12秒ずつずらします。</li>
+  <li><b>詠唱失敗</b>：杖の先で小さく爆発し、煙が出て、体が煤け、帽子が飛びます。</li>
+</ul>
+
+<h2><span>七</span>3Dの描き方</h2>
+<p>描画は three.js（WebGL）です。人物も舞台も、円すいや球などの基本の形を組み合わせて作っていて、外から読み込むモデルや画像はありません。</p>
+<ul>
+  <li><b>光の粒</b>：6,000個と1,500個の点の束を2つだけ用意し、使い回しています。加算合成で描き、寿命に合わせて色を黒へ近づけると、黒は加算しても何も足さないので、自然に消えて見えます。</li>
+  <li><b>煙・絵文字・文字</b>（バナナ、ハート、「ゴーン!」など）：板に描いた絵（スプライト）を、上がったり落ちたりさせながら薄くしていきます。絵はページの中で Canvas に描いて作っています。</li>
+  <li><b>魔法陣</b>：円、六芒星、模様を Canvas に描いた1枚の絵を、色を変えて床や杖の先に重ねています。</li>
+  <li><b>光</b>：点光源を6個だけ置き、必要なときに一番古いものを借りて光らせます。光の数を増減すると描画の準備をやり直すことになり、カクつくためです。</li>
+  <li><b>状態の変化</b>（カエル、石化、巨大化、浮遊、眠りなど）：毎フレーム、かかっている状態をすべて見て、色・大きさ・高さ・傾きを合成します。始まりと終わりは0.25〜0.4秒かけてなじませます。</li>
+  <li><b>時間</b>：効果を進める「ゲームの時間」と、画面の「実際の時間」を分けています。時よ止まれ はゲームの時間をほぼ止めて画面を白黒にし、★5のスローは一瞬だけゲームの時間を遅くします。</li>
+</ul>
+
+<h2><span>八</span>使っているもの</h2>
+<div class="tbl"><table>
+<tr><th>名前</th><th>用途</th><th>ライセンス</th></tr>
+<tr><td>three.js 0.149.0</td><td>3D描画（jsDelivr から読み込み）</td><td>MIT</td></tr>
+<tr><td>Shippori Mincho B1、Zen Kaku Gothic New</td><td>文字（Google Fonts から読み込み）</td><td>SIL Open Font License</td></tr>
+<tr><td>Web Speech API</td><td>音声認識（Chrome の機能）</td><td>―</td></tr>
+</table></div>
+<p>動作を確かめたのは PC の Chrome です。音声認識は Chrome 以外では動かないことがあります。そのときは文字で唱えてください。</p>
+
+<footer>呪文の練習場 ／ 魔法の辞書と式は今後も調整します。</footer>
+</main>
+
+</html>
